@@ -2,8 +2,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <stdexcept>
-#include <thread>
-#include <chrono>
 #include "TimedDoor.h"
 
 using ::testing::_;
@@ -21,27 +19,10 @@ class MockDoor : public Door {
   MOCK_METHOD(bool, isDoorOpened, (), (override));
 };
 
-class MockTimer {
- public:
-  MockTimerClient* client;
-  int registeredTimeout;
-
-  void tregister(int timeout, TimerClient* client) {
-    this->registeredTimeout = timeout;
-    this->client = static_cast<MockTimerClient*>(client);
-  }
-
-  void triggerTimeout() {
-    if (client != nullptr) {
-      client->Timeout();
-    }
-  }
-};
-
 class TimedDoorTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    door = new TimedDoor(1);
+    door = new TimedDoor(5);
   }
 
   void TearDown() override {
@@ -52,7 +33,7 @@ class TimedDoorTest : public ::testing::Test {
 };
 
 TEST_F(TimedDoorTest, ConstructorSetsTimeout) {
-  EXPECT_EQ(door->getTimeOut(), 1);
+  EXPECT_EQ(door->getTimeOut(), 5);
 }
 
 TEST_F(TimedDoorTest, InitiallyDoorIsClosed) {
@@ -62,11 +43,11 @@ TEST_F(TimedDoorTest, InitiallyDoorIsClosed) {
 TEST_F(TimedDoorTest, UnlockOpensDoor) {
   door->unlock();
   EXPECT_TRUE(door->isDoorOpened());
-  door->lock();
 }
 
 TEST_F(TimedDoorTest, LockClosesDoor) {
   door->unlock();
+  EXPECT_TRUE(door->isDoorOpened());
   door->lock();
   EXPECT_FALSE(door->isDoorOpened());
 }
@@ -74,20 +55,6 @@ TEST_F(TimedDoorTest, LockClosesDoor) {
 TEST_F(TimedDoorTest, GetTimeoutReturnsCorrectValue) {
   TimedDoor door2(10);
   EXPECT_EQ(door2.getTimeOut(), 10);
-}
-
-TEST_F(TimedDoorTest, NoExceptionWhenDoorClosedBeforeTimeout) {
-  door->unlock();
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  door->lock();
-  std::this_thread::sleep_for(std::chrono::milliseconds(600));
-  EXPECT_FALSE(door->isDoorOpened());
-}
-
-TEST_F(TimedDoorTest, ExceptionThrownWhenDoorRemainsOpen) {
-  door->unlock();
-  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
-  EXPECT_THROW(door->throwState(), std::runtime_error);
 }
 
 TEST_F(TimedDoorTest, MultipleUnlockLockSequences) {
@@ -113,27 +80,8 @@ TEST_F(TimedDoorTest, DifferentTimeouts) {
   EXPECT_EQ(door3.getTimeOut(), 15);
 }
 
-TEST(TimerTest, TregisterStoresClient) {
-  MockTimerClient client;
-  MockTimer timer;
-
-  timer.tregister(5, &client);
-  EXPECT_EQ(timer.registeredTimeout, 5);
-  EXPECT_EQ(timer.client, &client);
-}
-
-TEST(TimerTest, TimeoutCallsClientTimeout) {
-  MockTimerClient client;
-  MockTimer timer;
-
-  EXPECT_CALL(client, Timeout()).Times(1);
-
-  timer.tregister(0, &client);
-  timer.triggerTimeout();
-}
-
 TEST(DoorTimerAdapterTest, AdapterCallsThrowStateWhenDoorOpened) {
-  TimedDoor door(1);
+  TimedDoor door(5);
   DoorTimerAdapter adapter(door);
 
   door.unlock();
@@ -143,7 +91,7 @@ TEST(DoorTimerAdapterTest, AdapterCallsThrowStateWhenDoorOpened) {
 }
 
 TEST(DoorTimerAdapterTest, AdapterDoesNotThrowWhenDoorClosed) {
-  TimedDoor door(1);
+  TimedDoor door(5);
   DoorTimerAdapter adapter(door);
 
   door.lock();

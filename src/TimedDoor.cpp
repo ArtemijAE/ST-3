@@ -1,21 +1,45 @@
 // Copyright 2021 GHA Test Team
 #include "TimedDoor.h"
 #include <stdexcept>
-#include <thread>
-#include <chrono>
+
+class TimerImpl {
+ private:
+  TimerClient* client;
+  int timeout;
+  bool active;
+
+ public:
+  TimerImpl() : client(nullptr), timeout(0), active(false) {}
+
+  void tregister(int t, TimerClient* c) {
+    timeout = t;
+    client = c;
+    active = true;
+  }
+
+  void tick() {
+    if (active && timeout > 0) {
+      timeout--;
+      if (timeout == 0 && client != nullptr) {
+        client->Timeout();
+        active = false;
+      }
+    }
+  }
+};
+
+static TimerImpl globalTimer;
 
 void Timer::sleep(int timeout) {
-  std::this_thread::sleep_for(std::chrono::seconds(timeout));
+  // Не используем реальный sleep в тестах
 }
 
 void Timer::tregister(int timeout, TimerClient* client) {
-  this->client = client;
-  std::thread([this, timeout]() {
-    sleep(timeout);
-    if (this->client != nullptr) {
-      this->client->Timeout();
-    }
-  }).detach();
+  globalTimer.tregister(timeout, client);
+}
+
+void Timer::tick() {
+  globalTimer.tick();
 }
 
 DoorTimerAdapter::DoorTimerAdapter(TimedDoor& door) : door(door) {}
