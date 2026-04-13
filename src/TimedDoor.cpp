@@ -10,10 +10,12 @@ void Timer::sleep(int timeout) {
 
 void Timer::tregister(int timeout, TimerClient* client) {
   this->client = client;
-  sleep(timeout);
-  if (client != nullptr) {
-    client->Timeout();
-  }
+  std::thread([this, timeout]() {
+    sleep(timeout);
+    if (this->client != nullptr) {
+      this->client->Timeout();
+    }
+  }).detach();
 }
 
 DoorTimerAdapter::DoorTimerAdapter(TimedDoor& door) : door(door) {}
@@ -49,3 +51,4 @@ int TimedDoor::getTimeOut() const {
 void TimedDoor::throwState() {
   throw std::runtime_error("Door was left open too long!");
 }
+
