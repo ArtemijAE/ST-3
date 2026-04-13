@@ -26,7 +26,7 @@ class MockTimer {
 
   void tregister(int timeout, TimerClient* client) {
     this->registeredTimeout = timeout;
-    this->client = client;
+    this->client = static_cast<MockTimerClient*>(client);
   }
 
   void triggerTimeout() {
@@ -113,7 +113,7 @@ TEST(DoorTimerAdapterTest, AdapterDoesNotThrowWhenDoorClosed) {
   EXPECT_NO_THROW(adapter.Timeout());
 }
 
-TEST(TimedDoorTest, LockPreventsTimeoutException) {
+TEST_F(TimedDoorTest, LockPreventsTimeoutException) {
   TimedDoor door(1);
 
   door.unlock();
@@ -126,7 +126,7 @@ TEST(TimedDoorTest, LockPreventsTimeoutException) {
   });
 }
 
-TEST(TimedDoorTest, MultipleUnlockLockSequences) {
+TEST_F(TimedDoorTest, MultipleUnlockLockSequences) {
   for (int i = 0; i < 3; i++) {
     door->unlock();
     EXPECT_TRUE(door->isDoorOpened());
@@ -135,11 +135,11 @@ TEST(TimedDoorTest, MultipleUnlockLockSequences) {
   }
 }
 
-TEST(TimedDoorTest, ThrowStateThrowsRuntimeError) {
+TEST_F(TimedDoorTest, ThrowStateThrowsRuntimeError) {
   EXPECT_THROW(door->throwState(), std::runtime_error);
 }
 
-TEST(TimedDoorTest, DifferentTimeouts) {
+TEST_F(TimedDoorTest, DifferentTimeouts) {
   TimedDoor door1(3);
   TimedDoor door2(7);
   TimedDoor door3(15);

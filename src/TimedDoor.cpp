@@ -49,4 +49,3 @@ int TimedDoor::getTimeOut() const {
 void TimedDoor::throwState() {
   throw std::runtime_error("Door was left open too long!");
 }
-
