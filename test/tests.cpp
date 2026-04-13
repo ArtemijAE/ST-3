@@ -22,7 +22,7 @@ class MockDoor : public Door {
 class TimedDoorTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    door = new TimedDoor(5);
+    door = new TimedDoor(2);
   }
 
   void TearDown() override {
@@ -32,8 +32,40 @@ class TimedDoorTest : public ::testing::Test {
   TimedDoor* door;
 };
 
+class AdapterTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    door = new TimedDoor(3);
+    adapter = new DoorTimerAdapter(*door);
+  }
+
+  void TearDown() override {
+    delete adapter;
+    delete door;
+  }
+
+  TimedDoor* door;
+  DoorTimerAdapter* adapter;
+};
+
+class TimerTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    timer = new Timer();
+    mockClient = new MockTimerClient();
+  }
+
+  void TearDown() override {
+    delete timer;
+    delete mockClient;
+  }
+
+  Timer* timer;
+  MockTimerClient* mockClient;
+};
+
 TEST_F(TimedDoorTest, ConstructorSetsTimeout) {
-  EXPECT_EQ(door->getTimeOut(), 5);
+  EXPECT_EQ(door->getTimeOut(), 2);
 }
 
 TEST_F(TimedDoorTest, InitiallyDoorIsClosed) {
@@ -57,6 +89,10 @@ TEST_F(TimedDoorTest, GetTimeoutReturnsCorrectValue) {
   EXPECT_EQ(door2.getTimeOut(), 10);
 }
 
+TEST_F(TimedDoorTest, ThrowStateThrowsRuntimeError) {
+  EXPECT_THROW(door->throwState(), std::runtime_error);
+}
+
 TEST_F(TimedDoorTest, MultipleUnlockLockSequences) {
   for (int i = 0; i < 3; i++) {
     door->unlock();
@@ -64,10 +100,6 @@ TEST_F(TimedDoorTest, MultipleUnlockLockSequences) {
     door->lock();
     EXPECT_FALSE(door->isDoorOpened());
   }
-}
-
-TEST_F(TimedDoorTest, ThrowStateThrowsRuntimeError) {
-  EXPECT_THROW(door->throwState(), std::runtime_error);
 }
 
 TEST_F(TimedDoorTest, DifferentTimeouts) {
@@ -80,27 +112,48 @@ TEST_F(TimedDoorTest, DifferentTimeouts) {
   EXPECT_EQ(door3.getTimeOut(), 15);
 }
 
-TEST(DoorTimerAdapterTest, AdapterCallsThrowStateWhenDoorOpened) {
-  TimedDoor door(5);
-  DoorTimerAdapter adapter(door);
-
-  door.unlock();
-  EXPECT_TRUE(door.isDoorOpened());
-
-  EXPECT_THROW(adapter.Timeout(), std::runtime_error);
+TEST_F(AdapterTest, AdapterThrowsWhenDoorOpened) {
+  door->unlock();
+  EXPECT_TRUE(door->isDoorOpened());
+  EXPECT_THROW(adapter->Timeout(), std::runtime_error);
 }
 
-TEST(DoorTimerAdapterTest, AdapterDoesNotThrowWhenDoorClosed) {
-  TimedDoor door(5);
-  DoorTimerAdapter adapter(door);
-
-  door.lock();
-  EXPECT_FALSE(door.isDoorOpened());
-
-  EXPECT_NO_THROW(adapter.Timeout());
+TEST_F(AdapterTest, AdapterDoesNotThrowWhenDoorClosed) {
+  door->lock();
+  EXPECT_FALSE(door->isDoorOpened());
+  EXPECT_NO_THROW(adapter->Timeout());
 }
 
-TEST(MockDoorTest, MockDoorCanBeUsed) {
+TEST_F(TimerTest, TimerCallsClientTimeout) {
+  EXPECT_CALL(*mockClient, Timeout()).Times(1);
+  timer->tregister(0, mockClient);
+}
+
+TEST_F(TimerTest, TimerDoesNotCrashWithNullClient) {
+  EXPECT_NO_THROW(timer->tregister(1, nullptr));
+}
+
+TEST_F(TimedDoorTest, TimerThrowsWhenDoorOpen) {
+  Timer tm;
+  door->unlock();
+  EXPECT_TRUE(door->isDoorOpened());
+  DoorTimerAdapter ad(*door);
+  EXPECT_THROW({
+    tm.tregister(door->getTimeOut(), &ad);
+  }, std::runtime_error);
+}
+
+TEST_F(TimedDoorTest, TimerDoesNotThrowWhenDoorClosed) {
+  Timer tm;
+  door->lock();
+  EXPECT_FALSE(door->isDoorOpened());
+  DoorTimerAdapter ad(*door);
+  EXPECT_NO_THROW({
+    tm.tregister(door->getTimeOut(), &ad);
+  });
+}
+
+TEST(MockDoorTest, MockDoorWorks) {
   MockDoor mockDoor;
 
   EXPECT_CALL(mockDoor, lock()).Times(1);
@@ -111,4 +164,5 @@ TEST(MockDoorTest, MockDoorCanBeUsed) {
   mockDoor.unlock();
   EXPECT_FALSE(mockDoor.isDoorOpened());
 }
+
 
