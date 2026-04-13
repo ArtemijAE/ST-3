@@ -16,10 +16,6 @@ TimedDoor::TimedDoor(int timeout) : iTimeout(timeout), isOpened(false) {
   adapter = new DoorTimerAdapter(*this);
 }
 
-TimedDoor::~TimedDoor() {
-  delete adapter;
-}
-
 bool TimedDoor::isDoorOpened() {
   return isOpened;
 }
@@ -51,5 +47,4 @@ void Timer::tregister(int timeout, TimerClient* client) {
     client->Timeout();
   }
 }
-
 

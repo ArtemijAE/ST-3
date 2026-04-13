@@ -164,5 +164,3 @@ TEST(MockDoorTest, MockDoorWorks) {
   mockDoor.unlock();
   EXPECT_FALSE(mockDoor.isDoorOpened());
 }
-
-
